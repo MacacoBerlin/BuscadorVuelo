@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Salidas — Vuelos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B1220;
+    --board:#111B2E;
+    --board-2:#16233B;
+    --line:#26344E;
+    --amber:#F5A623;
+    --amber-dim:#C97F0E;
+    --paper:#EDE7DA;
+    --ok:#4CAF7D;
+    --bad:#E2604D;
+    --muted:#8592A6;
+    --text:#EDEFF3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 50% -10%, #16233B 0%, var(--ink) 55%);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding:20px 14px 60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+
+  /* Header — departure board title */
+  header{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.25em;
+    color:var(--amber);
+    text-transform:uppercase;
+  }
+  h1{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:800;
+    font-size:42px;
+    letter-spacing:.02em;
+    margin:4px 0 2px;
+    text-transform:uppercase;
+    color:var(--text);
+  }
+  .sub{color:var(--muted);font-size:13px;}
+
+  /* Tabs styled like gate selectors */
+  .tabs{
+    display:flex;
+    gap:8px;
+    margin:22px 0 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab{
+    flex:1;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    padding:10px 4px 12px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:color .15s;
+  }
+  .tab.active{color:var(--amber);border-color:var(--amber);}
+
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .board-card{
+    background:linear-gradient(180deg,var(--board) 0%, var(--board-2) 100%);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    margin-bottom:14px;
+  }
+  .row{display:flex;gap:10px;margin-bottom:12px;}
+  .row > div{flex:1;}
+  label{
+    display:block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  input{
+    width:100%;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--amber);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    letter-spacing:.05em;
+    padding:9px 10px;
+    border-radius:6px;
+    text-transform:uppercase;
+  }
+  input::placeholder{color:#4a5975;text-transform:none;}
+  input:focus{outline:none;border-color:var(--amber);}
+  input[type="date"]{text-transform:none;color:var(--text);}
+  input[type="number"]{text-transform:none;color:var(--text);}
+  #g-origin,#g-dest,#t-origin,#t-dest{text-transform:none;}
+
+  .btn{
+    width:100%;
+    background:var(--amber);
+    color:#1A1200;
+    border:none;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:12px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn.ghost{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--text);
+  }
+
+  /* Departure board results */
+  .flap-list{margin-top:16px;}
+  .flap{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--ink);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    border-radius:6px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    text-decoration:none;
+    transition:border-color .15s;
+  }
+  .flap:hover{border-left-color:var(--amber-dim);}
+  .flap .left{display:flex;flex-direction:column;}
+  .flap .service{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:800;
+    font-size:19px;
+    color:var(--text);
+    text-transform:uppercase;
+    letter-spacing:.02em;
+  }
+  .flap .note{font-size:11px;color:var(--muted);margin-top:2px;}
+  .flap .go{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--amber);
+    font-size:11px;
+    letter-spacing:.1em;
+  }
+
+  .tip{
+    font-size:12px;
+    color:var(--muted);
+    background:var(--ink);
+    border:1px dashed var(--line);
+    border-radius:6px;
+    padding:10px 12px;
+    margin-top:10px;
+    line-height:1.5;
+  }
+  .tip b{color:var(--amber);}
+
+  /* Tracker */
+  .stub{
+    background:linear-gradient(90deg,var(--paper),#E4DDCB);
+    color:#241E0F;
+    border-radius:8px;
+    padding:14px 14px;
+    margin-bottom:10px;
+    position:relative;
+    overflow:hidden;
+  }
+  .stub::after{
+    content:"";
+    position:absolute;
+    right:78px;top:0;bottom:0;
+    width:0;
+    border-left:2px dashed rgba(36,30,15,.25);
+  }
+  .stub-top{display:flex;justify-content:space-between;align-items:flex-start;}
+  .stub-route{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:800;
+    font-size:24px;
+    letter-spacing:.03em;
+  }
+  .stub-route .arrow{color:var(--amber-dim);margin:0 4px;}
+  .stub-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#5a4f33;margin-top:2px;}
+  .stub-price{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:22px;
+    text-align:right;
+  }
+  .stub-price.ok{color:#2E7D4F;}
+  .stub-price.bad{color:#B34530;}
+  .stub-target{font-size:10px;color:#5a4f33;text-align:right;margin-top:2px;}
+  .badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    padding:3px 7px;
+    border-radius:20px;
+    margin-top:6px;
+  }
+  .badge.record{background:#2E7D4F;color:#EAF6EE;}
+  .badge.good{background:rgba(46,125,79,.15);color:#2E7D4F;border:1px solid rgba(46,125,79,.4);}
+  .badge.bad{background:rgba(179,69,48,.12);color:#B34530;border:1px solid rgba(179,69,48,.35);}
+  .stub-del{
+    position:absolute;
+    top:6px;right:6px;
+    background:none;border:none;
+    color:#8a7c52;font-size:14px;cursor:pointer;
+    padding:4px 6px;
+  }
+  .spark{margin-top:8px;}
+
+  .empty{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    padding:30px 10px;
+    border:1px dashed var(--line);
+    border-radius:8px;
+  }
+
+  h3.section{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:20px 0 8px;
+  }
+</style>
+</head>
+<body>
+<datalist id="city-list"></datalist>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Panel de salidas</div>
+    <h1>Vuelos baratos</h1>
+    <div class="sub">Genera búsquedas optimizadas y sigue la evolución de precios</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="gen">Buscador</button>
+    <button class="tab" data-tab="track">Seguimiento</button>
+  </div>
+
+  <!-- GENERADOR -->
+  <div class="panel active" id="panel-gen">
+    <div class="board-card">
+      <div class="row">
+        <div>
+          <label>Origen</label>
+          <input id="g-origin" list="city-list" placeholder="Zaragoza / Madrid / MAD">
+        </div>
+        <div>
+          <label>Destino</label>
+          <input id="g-dest" list="city-list" placeholder="Lisboa / Roma / LIS">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Salida</label>
+          <input id="g-date1" type="date">
+        </div>
+        <div>
+          <label>Vuelta (opcional)</label>
+          <input id="g-date2" type="date">
+        </div>
+      </div>
+      <button class="btn" onclick="generarBusquedas()">Generar enlaces</button>
+    </div>
+
+    <div class="flap-list" id="flap-list"></div>
+
+    <div class="tip">
+      <b>Truco:</b> los enlaces de "mes completo" (Skyscanner) muestran un calendario con el día más barato sin tener que fijar fecha exacta. Úsalo primero para detectar el hueco barato, y luego afina en Google Flights o Kayak.
+    </div>
+  </div>
+
+  <!-- SEGUIMIENTO -->
+  <div class="panel" id="panel-track">
+    <div class="board-card">
+      <div class="row">
+        <div>
+          <label>Origen</label>
+          <input id="t-origin" list="city-list" placeholder="Zaragoza / MAD">
+        </div>
+        <div>
+          <label>Destino</label>
+          <input id="t-dest" list="city-list" placeholder="Lisboa / LIS">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Precio visto (€)</label>
+          <input id="t-price" type="number" min="0" step="1" placeholder="89">
+        </div>
+        <div>
+          <label>Precio objetivo (€, opcional)</label>
+          <input id="t-target" type="number" min="0" step="1" placeholder="70">
+        </div>
+      </div>
+      <button class="btn" onclick="addEntry()">Registrar precio</button>
+    </div>
+
+    <div class="row" style="margin-top:4px;">
+      <div><button class="btn ghost" onclick="exportEntries()">Exportar historial</button></div>
+      <div><button class="btn ghost" onclick="document.getElementById('import-file').click()">Importar historial</button></div>
+    </div>
+    <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importEntries(event)">
+
+    <h3 class="section">Historial por ruta</h3>
+    <div id="tracker-list"></div>
+  </div>
+
+</div>
+
+<script>
+/* ---------- DICCIONARIO CIUDAD → IATA ---------- */
+const AIRPORTS = {
+  // España
+  "madrid":"MAD","barcelona":"BCN","zaragoza":"ZAZ","valencia":"VLC","sevilla":"SVQ",
+  "malaga":"AGP","bilbao":"BIO","alicante":"ALC","palma de mallorca":"PMI","palma":"PMI",
+  "ibiza":"IBZ","menorca":"MAH","gran canaria":"LPA","las palmas":"LPA","tenerife norte":"TFN",
+  "tenerife sur":"TFS","tenerife":"TFS","lanzarote":"ACE","fuerteventura":"FUE","santiago de compostela":"SCQ",
+  "vigo":"VGO","a coruña":"LCG","asturias":"OVD","santander":"SDR","san sebastian":"EAS",
+  "vitoria":"VIT","pamplona":"PNA","murcia":"RMU","jerez":"XRY","almeria":"LEI",
+  "granada":"GRX","reus":"REU","girona":"GRO","valladolid":"VLL","salamanca":"SLM",
+  "badajoz":"BJZ","leon":"LEN","el hierro":"VDE","la palma":"SPC","melilla":"MLN","ceuta":"JCU",
+  // Europa
+  "lisboa":"LIS","oporto":"OPO","porto":"OPO","paris":"CDG","londres":"LON","londres gatwick":"LGW",
+  "londres heathrow":"LHR","londres stansted":"STN","roma":"FCO","milan":"MIL","milán":"MIL",
+  "venecia":"VCE","napoles":"NAP","florencia":"FLR","turin":"TRN","bolonia":"BLQ",
+  "berlin":"BER","munich":"MUC","frankfurt":"FRA","hamburgo":"HAM","colonia":"CGN",
+  "amsterdam":"AMS","bruselas":"BRU","dublin":"DUB","viena":"VIE","zurich":"ZRH",
+  "ginebra":"GVA","atenas":"ATH","estambul":"IST","copenhague":"CPH","estocolmo":"ARN",
+  "oslo":"OSL","helsinki":"HEL","varsovia":"WAW","cracovia":"KRK","praga":"PRG",
+  "budapest":"BUD","bucarest":"OTP","sofia":"SOF","belgrado":"BEG","zagreb":"ZAG",
+  "dubrovnik":"DBV","split":"SPU","malta":"MLA","reikiavik":"KEF","edimburgo":"EDI",
+  "moscu":"SVO","niza":"NCE","marsella":"MRS","lyon":"LYS","toulouse":"TLS","burdeos":"BOD",
+  "ginova":"GOA","luxemburgo":"LUX","tallin":"TLL","riga":"RIX","vilna":"VNO","chisinau":"KIV",
+  // Resto del mundo
+  "nueva york":"NYC","los angeles":"LAX","miami":"MIA","chicago":"ORD","san francisco":"SFO",
+  "toronto":"YTO","mexico":"MEX","cancun":"CUN","bogota":"BOG","buenos aires":"BUE",
+  "lima":"LIM","santiago de chile":"SCL","sao paulo":"SAO","rio de janeiro":"RIO",
+  "tokio":"TYO","seul":"ICN","bangkok":"BKK","singapur":"SIN","hong kong":"HKG",
+  "dubai":"DXB","doha":"DOH","el cairo":"CAI","marrakech":"RAK","casablanca":"CMN",
+  "estambul":"IST","tel aviv":"TLV","sidney":"SYD","melbourne":"MEL","auckland":"AKL"
+};
+
+function fillCityList(){
+  const dl=document.getElementById('city-list');
+  Object.keys(AIRPORTS).forEach(name=>{
+    const opt=document.createElement('option');
+    opt.value = name.charAt(0).toUpperCase()+name.slice(1);
+    dl.appendChild(opt);
+  });
+}
+fillCityList();
+
+// Convierte lo que el usuario escriba (ciudad o código) en un código IATA
+function resolveCode(input){
+  const raw=(input||'').trim();
+  if(!raw) return null;
+  const lower=raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(AIRPORTS[lower]) return AIRPORTS[lower];
+  // buscar por coincidencia parcial (p.ej. "nueva y")
+  const match=Object.keys(AIRPORTS).find(name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(lower));
+  if(match) return AIRPORTS[match];
+  // si ya son 3 letras, asumimos que es el código IATA
+  const upper=raw.toUpperCase().replace(/[^A-Z]/g,'');
+  if(upper.length===3) return upper;
+  return null;
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='track') renderTracker();
+  });
+});
+
+/* ---------- GENERADOR DE BÚSQUEDAS ---------- */
+function fmtYYMMDD(d){
+  const dt=new Date(d+'T00:00:00');
+  const yy=String(dt.getFullYear()).slice(2);
+  const mm=String(dt.getMonth()+1).padStart(2,'0');
+  const dd=String(dt.getDate()).padStart(2,'0');
+  return {yy,mm,dd,yymmdd:yy+mm+dd,yymm:yy+mm};
+}
+function fmtLong(d){
+  const dt=new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function generarBusquedas(){
+  const origin=resolveCode(document.getElementById('g-origin').value);
+  const dest=resolveCode(document.getElementById('g-dest').value);
+  const date1=document.getElementById('g-date1').value;
+  const date2=document.getElementById('g-date2').value;
+  const list=document.getElementById('flap-list');
+  list.innerHTML='';
+
+  if(!origin||!dest||!date1){
+    list.innerHTML='<div class="empty">Escribe origen y destino (ciudad o código IATA) y una fecha de salida. Si es una ciudad que no reconozco, prueba con su código de 3 letras.</div>';
+    return;
+  }
+
+  const links=[];
+  const o1=fmtYYMMDD(date1);
+
+  // Google Flights
+  let gfQuery = `Flights from ${origin} to ${dest} on ${date1}`;
+  if(date2) gfQuery += ` through ${date2}`;
+  links.push({
+    service:'Google Flights',
+    note: date2 ? `Ida y vuelta · ${fmtLong(date1)} → ${fmtLong(date2)}` : `Solo ida · ${fmtLong(date1)}`,
+    url:`https://www.google.com/travel/flights?q=${encodeURIComponent(gfQuery)}`
+  });
+
+  // Skyscanner exact dates
+  if(date2){
+    const o2=fmtYYMMDD(date2);
+    links.push({
+      service:'Skyscanner',
+      note:`Fechas exactas · ${fmtLong(date1)} → ${fmtLong(date2)}`,
+      url:`https://www.skyscanner.es/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/${o1.yymmdd}/${o2.yymmdd}/`
+    });
+  }else{
+    links.push({
+      service:'Skyscanner',
+      note:`Solo ida · ${fmtLong(date1)}`,
+      url:`https://www.skyscanner.es/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/${o1.yymmdd}/`
+    });
+  }
+
+  // Skyscanner whole month (flexible)
+  links.push({
+    service:'Skyscanner · Mes completo',
+    note:`Calendario de precios de ${o1.mm}/20${o1.yy}`,
+    url:`https://www.skyscanner.es/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/${o1.yymm}/`
+  });
+
+  // Kayak
+  if(date2){
+    links.push({
+      service:'Kayak',
+      note:`Ida y vuelta · ordenado por precio`,
+      url:`https://www.kayak.es/flights/${origin}-${dest}/${date1}/${date2}?sort=price_a`
+    });
+  }else{
+    links.push({
+      service:'Kayak',
+      note:`Solo ida · ordenado por precio`,
+      url:`https://www.kayak.es/flights/${origin}-${dest}/${date1}?sort=price_a`
+    });
+  }
+
+  // Momondo
+  if(date2){
+    links.push({
+      service:'Momondo',
+      note:`Ida y vuelta`,
+      url:`https://www.momondo.es/flight-search/${origin}-${dest}/${date1}/${date2}`
+    });
+  }else{
+    links.push({
+      service:'Momondo',
+      note:`Solo ida`,
+      url:`https://www.momondo.es/flight-search/${origin}-${dest}/${date1}`
+    });
+  }
+
+  links.forEach(l=>{
+    const a=document.createElement('a');
+    a.href=l.url; a.target='_blank'; a.rel='noopener';
+    a.className='flap';
+    a.innerHTML=`<div class="left"><div class="service">${l.service}</div><div class="note">${l.note}</div></div><div class="go">ABRIR →</div>`;
+    list.appendChild(a);
+  });
+}
+
+/* ---------- SEGUIMIENTO DE PRECIOS (persistente en este navegador) ---------- */
+const STORE_KEY='flight-tracker-entries';
+
+async function loadEntries(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    return [];
+  }
+}
+async function saveEntries(entries){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(entries));
+  }catch(e){
+    console.error('No se pudo guardar', e);
+  }
+}
+
+async function addEntry(){
+  const origin=resolveCode(document.getElementById('t-origin').value);
+  const dest=resolveCode(document.getElementById('t-dest').value);
+  const price=parseFloat(document.getElementById('t-price').value);
+  const targetRaw=document.getElementById('t-target').value;
+  const target=targetRaw?parseFloat(targetRaw):null;
+
+  if(!origin||!dest||isNaN(price)){
+    alert('Escribe origen, destino (ciudad o código IATA) y un precio válido.');
+    return;
+  }
+
+  const entries=await loadEntries();
+  entries.push({
+    id:Date.now().toString(36),
+    origin,dest,price,target,
+    date:new Date().toISOString()
+  });
+  await saveEntries(entries);
+
+  document.getElementById('t-price').value='';
+  document.getElementById('t-target').value='';
+  renderTracker();
+}
+
+async function deleteEntry(id){
+  let entries=await loadEntries();
+  entries=entries.filter(e=>e.id!==id);
+  await saveEntries(entries);
+  renderTracker();
+}
+
+function sparkline(values){
+  if(values.length<2) return '';
+  const w=140,h=30,pad=3;
+  const min=Math.min(...values), max=Math.max(...values);
+  const range=(max-min)||1;
+  const step=(w-pad*2)/(values.length-1);
+  const pts=values.map((v,i)=>{
+    const x=pad+i*step;
+    const y=h-pad-((v-min)/range)*(h-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const lastGood = values[values.length-1] <= values[0];
+  const stroke = lastGood ? '#2E7D4F' : '#B34530';
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function priceBadge(latest, priorPrices){
+  // priorPrices = precios de esa ruta ANTES del último registro
+  if(priorPrices.length===0) return '';
+  const min=Math.min(...priorPrices);
+  const avg=priorPrices.reduce((a,b)=>a+b,0)/priorPrices.length;
+
+  if(latest.price<min){
+    return `<span class="badge record">🔥 Mínimo histórico</span>`;
+  }
+  if(latest.price<=avg*0.9){
+    return `<span class="badge good">↓ ${Math.round((1-latest.price/avg)*100)}% bajo tu media</span>`;
+  }
+  if(latest.price>=avg*1.15){
+    return `<span class="badge bad">↑ por encima de tu media</span>`;
+  }
+  return `<span class="badge good">≈ en línea con tu media</span>`;
+}
+
+async function renderTracker(){
+  const container=document.getElementById('tracker-list');
+  const entries=await loadEntries();
+
+  if(entries.length===0){
+    container.innerHTML='<div class="empty">Todavía no has registrado ningún precio. Añade el primero arriba.</div>';
+    return;
+  }
+
+  // group by route
+  const groups={};
+  entries.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e=>{
+    const key=e.origin+'-'+e.dest;
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(e);
+  });
+
+  container.innerHTML='';
+  Object.keys(groups).forEach(key=>{
+    const list=groups[key];
+    const latest=list[list.length-1];
+    const priorPrices=list.slice(0,-1).map(e=>e.price);
+    const isGood = latest.target ? latest.price<=latest.target : (priorPrices.length===0 || latest.price<=Math.min(...priorPrices));
+    const badge=priceBadge(latest, priorPrices);
+    const div=document.createElement('div');
+    div.className='stub';
+    div.innerHTML=`
+      <button class="stub-del" onclick="deleteEntry('${latest.id}')" title="Eliminar último registro">✕</button>
+      <div class="stub-top">
+        <div>
+          <div class="stub-route">${latest.origin}<span class="arrow">✈</span>${latest.dest}</div>
+          <div class="stub-meta">${list.length} registro${list.length>1?'s':''} · último: ${new Date(latest.date).toLocaleDateString('es-ES')}</div>
+        </div>
+        <div>
+          <div class="stub-price ${isGood?'ok':'bad'}">${latest.price}€</div>
+          ${latest.target?`<div class="stub-target">objetivo ${latest.target}€</div>`:''}
+        </div>
+      </div>
+      ${sparkline(list.map(e=>e.price))}
+      ${badge}
+    `;
+    container.appendChild(div);
+  });
+}
+
+/* ---------- EXPORTAR / IMPORTAR ---------- */
+async function exportEntries(){
+  const entries=await loadEntries();
+  if(entries.length===0){ alert('No hay historial que exportar todavía.'); return; }
+  const blob=new Blob([JSON.stringify(entries,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`historial-vuelos-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importEntries(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  try{
+    const text=await file.text();
+    const imported=JSON.parse(text);
+    if(!Array.isArray(imported)) throw new Error('Formato inválido');
+
+    const current=await loadEntries();
+    const existingIds=new Set(current.map(e=>e.id));
+    let added=0;
+    imported.forEach(e=>{
+      if(e && e.origin && e.dest && typeof e.price==='number'){
+        if(!e.id || existingIds.has(e.id)){
+          e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+        }
+        current.push(e);
+        added++;
+      }
+    });
+    await saveEntries(current);
+    renderTracker();
+    alert(`Se importaron ${added} registro(s).`);
+  }catch(err){
+    alert('No se pudo leer el archivo. Asegúrate de que es un JSON exportado desde esta misma herramienta.');
+  }finally{
+    event.target.value='';
+  }
+}
+
+/* init */
+renderTracker();
+</script>
+</body>
+</html>
